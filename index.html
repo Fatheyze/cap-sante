@@ -387,7 +387,7 @@ const SESSION=(()=>{const s=[['Échauffement : marche sur place',120,'Marche sur
 const DUO=['Le dé des exercices : lancez le dé ci-dessous, chacun fait l’exercice qui sort. 10 lancers.','Danse-statue : elle lance la musique et l’arrête, tout le monde se fige. Celui qui bouge fait 5 assis-debout.','Corde contre haltères : elle saute à la corde pendant que tu fais tes rowings. On échange les rôles de musique.','Qui tient le plus longtemps en gainage ? Le perdant choisit la musique de demain.','Balade photo de 30 minutes : trouvez 5 choses rouges dans le quartier.','Danse sur 6 chansons d’affilée, chacun en choisit 3.','Parcours dans le salon : coussins, chaise, couloir. Chronométrez-vous.','Marche rapide de 30 minutes en racontant votre journée.','Chacun invente un exercice, l’autre le fait 30 secondes. 10 tours.','Course de relais dans le couloir ou le jardin : 10 allers-retours chacun.','Vidéo de danse ou de fitness familial sur YouTube, en duo.'];
 const SESSION_TOTAL=SESSION.reduce((a,b)=>a+b[1],0);
 
-const ACTS=[['marche','Marche'],['velo','Vélo'],['vtt','VTT'],['piscine','Piscine'],['renfo','Renforcement'],['maison','Séance maison'],['velo-app','Vélo d’appartement'],['autre','Autre']];
+const ACTS=[['marche','Marche'],['marche-int','Marche en intérieur'],['velo','Vélo'],['vtt','VTT'],['velo-app','Vélo d’appartement'],['piscine','Piscine'],['aquagym','Aquagym ou aquabike'],['renfo','Renforcement'],['etirements','Étirements et yoga doux'],['danse','Danse'],['menage','Ménage actif'],['escaliers','Escaliers'],['jeu','Jeu en famille'],['autre','Autre']];
 /* parcours virtuel : 1 minute d'activité = 1 km */
 const ROUTE=[['Lille',0],['Paris',225],['Auxerre',395],['Dijon',540],['Lyon',740],['Avignon',970],['Marseille',1070],['Montpellier',1240],['Toulouse',1480],['Bordeaux',1720],['Nantes',2060],['Rennes',2170],['Paris',2520]];
 
@@ -625,6 +625,12 @@ function viewBouger(){const d=ui.date,acts=day(d).act||[],am=actMin(d),st=actStr
    <li>Vélo d’appartement devant une série : un épisode = une séance.</li>
    <li>Trois marches de 10 minutes après chaque repas.</li>
    <li>Piscine en famille une fois par semaine : aucun choc pour le genou.</li>
+   <li>Ménage actif : aspirateur, serpillière et rangement pendant 30 minutes, en music.</li>
+   <li>Danse sur 3 chansons préférées, au salon. Une chanson par tour, 10 minutes.</li>
+   <li>Yoga doux ou étirements : 15 minutes le soir, sur le tapis.</li>
+   <li>Marche en intérieur : galerie marchande, grand magasin ou couloirs de la gare.</li>
+   <li>Jeu en famille : badminton au salon, parcours avec des coussins, ballon à deux.</li>
+   <li>Pause active au bureau : 5 minutes de marche toutes les heures.</li>
    <li>VTT les week-ends secs avec ta fille. Un home-trainer permet aussi de rouler à l’intérieur.</li>
    <li>Si la douleur au genou persiste, demande l’avis de ton médecin.</li>
    <li>Vidéo de marche active à la maison (« walking workout ») sur YouTube.</li></ul></details></div>

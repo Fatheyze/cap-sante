@@ -365,6 +365,15 @@ const MENUS={
   {n:'Une boule de glace',t:['1 fois / semaine'],i:[['glace',50]]},
   {n:'Une tartelette aux fruits',t:['1 fois / semaine'],i:[['tartelette',100]]},
   {n:'Deux carrés de chocolat noir',t:['petit plaisir'],i:[['choco-noir',20]]},
+  {n:'Merguez de volaille, 1 seule, grillée',t:['1 fois / semaine'],i:[['merguez-volaille',55],['salade',80],['vinaigrette',10]]},
+  {n:'Frites au four, 150 g, avec 1 c. à café d’huile',t:['1 fois / semaine'],i:[['frites-four',150],['huile-olive',3]]},
+  {n:'Pâtes complètes au beurre salé et parmesan',t:['tes goûts'],i:[['pates-completes',150],['beurre',10],['parmesan',10]]},
+  {n:'Fromage : 30 g d’emmental ou comté',t:['tes goûts'],i:[['emmental',30],['crudites',100]]},
+  {n:'Pizza maison fine, une part',t:['1 fois / semaine'],i:[['pizza-maison',120],['salade',80],['vinaigrette',10]]},
+  {n:'Cookies 0 % maison, un',t:['petit plaisir'],i:[['cookie-light',30],['cafe',100]]},
+  {n:'Café et deux carrés de chocolat 85 %',t:['tes goûts'],i:[['cafe',100],['chocolat-lait-x',20]]},
+  {n:'Miel et skyr, une cuillère',t:['tes goûts'],i:[['skyr',150],['miel',7]]},
+  {n:'Glace yaourt, une boule',t:['1 fois / semaine'],i:[['glace-yaourt',60]]},
  ],
 };
 
@@ -553,7 +562,7 @@ function viewCourses(){const l=shop(),cats=[...new Set(l.map(x=>x.c))],left=l.fi
  <div class="card"><div class="row" style="flex-wrap:nowrap"><input id="shopin" placeholder="Ajouter un article" autocomplete="off"><button data-act="shopadd">Ajouter</button></div>
  <span class="small muted">Astuce : le bouton « + Courses » sous chaque menu ajoute ses ingrédients ici. Coche en magasin.</span></div>
  ${cats.map(c=>`<div class="card"><span class="eyebrow">${esc(c)}</span><div>${l.filter(x=>x.c===c).map(x=>`<label class="check" style="padding:5px 0;${x.done?'color:var(--muted);text-decoration:line-through':''}"><input type="checkbox" id="sh-${x.id}" data-shop="${x.id}" ${x.done?'checked':''}> ${esc(x.n)}</label>`).join('')}</div></div>`).join('')}
- <div class="row"><button class="line" data-act="shopclean">Retirer les articles cochés</button><button class="ghost" data-act="shopreset">Repartir de la liste de base</button></div>
+ <div class="row"><button class="line" data-act="shopclean">Retirer les articles cochés</button><button data-act="shoppdf">Imprimer les articles cochés (PDF)</button><button class="ghost" data-act="shopreset">Repartir de la liste de base</button></div>
  <div class="card"><span class="eyebrow">À ne pas acheter</span><span class="small">Les aliments qui te font craquer (gâteaux, chips, biscuits). S’ils ne sont pas à la maison, tu ne peux pas les grignoter. Ton plaisir de la semaine s’achète à l’unité, le jour même.</span></div>
  </div>`}
 
@@ -763,6 +772,28 @@ function viewMedical(){const md=medical(),bp=md.bp.slice().sort((a,b)=>a.d<b.d?1
   <span class="small muted">Notes gardées sur cet appareil uniquement.</span></div>
  </div>`}
 
+/* ---------- PDF minimal, généré sur l'appareil ---------- */
+function pdfStr(s){let o='(';for(const ch of s){const c=ch.charCodeAt(0);
+ if(c===40||c===41||c===92)o+='\\'+ch;else if(c>=32&&c<127)o+=ch;else if(c>=160&&c<256)o+='\\'+c.toString(8).padStart(3,'0');else o+=' '}return o+')'}
+function makePdf(lines){const src=lines.map(l=>l.replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/[’‘]/g,"'").replace(/[–—]/g,'-').replace(/…/g,'...'));
+ const per=44,pages=[];for(let i=0;i<src.length;i+=per)pages.push(src.slice(i,i+per));if(!pages.length)pages.push([]);
+ const N=pages.length,objs=[];
+ objs[0]='<< /Type /Catalog /Pages 2 0 R >>';
+ objs[1]='<< /Type /Pages /Kids ['+pages.map((_,i)=>(4+2*i)+' 0 R').join(' ')+'] /Count '+N+' >>';
+ objs[2]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+ pages.forEach((pl,i)=>{let c='BT /F1 12 Tf 16 TL 56 790 Td\n';pl.forEach((l,j)=>{c+=(j?'T* ':'')+pdfStr(l)+' Tj\n'});c+='ET';
+  objs[3+2*i]='<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents '+(5+2*i)+' 0 R >>';
+  objs[4+2*i]='<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream'});
+ let out='%PDF-1.4\n';const off=[];objs.forEach((o,k)=>{off[k]=out.length;out+=(k+1)+' 0 obj\n'+o+'\nendobj\n'});
+ const xref=out.length;out+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n'+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('');
+ out+='trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF\n';
+ return new Uint8Array([...out].map(c=>c.charCodeAt(0)&255))}
+async function savePdf(bytes,name){
+ try{const dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null;
+  if(dl){const r=await dl.save({filename:name,data:bytes});toast(r.status==='saved'?'PDF enregistré':'Enregistrement annulé');return}}catch(e){}
+ try{const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('PDF prêt à imprimer')}
+ catch(e){toast('Export impossible ici. Fais une capture d’écran de la liste.')}}
+
 /* ---------- J'ai faim ---------- */
 const FAIM={
  real:[
@@ -905,6 +936,9 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  else if(A==='dice'){ui.dice=1+Math.random()*6|0;render()}
  else if(A==='addbp'){const sy=+$('#bps').value,di=+$('#bpdi').value;if(!sy||!di){toast('Indique la tension');return}const md=medical();md.bp.push({id:uid(),d:$('#bpd').value||today(),s:sy,di,p:+$('#bpp')?.value||null});saveLocal();toast('Tension notée');render()}
  else if(A==='addtodo'){const v=$('#todoin').value.trim();if(!v)return;const md=medical();md.todo.push({id:uid(),t:v,done:false});saveLocal();render()}
+ else if(A==='shoppdf'){const it=shop().filter(x=>x.done);if(!it.length){toast('Coche d’abord les articles à acheter');return}
+  const L=['Liste de courses, '+fdate(today()),''];[...new Set(it.map(x=>x.c))].forEach(c=>{L.push(c.toUpperCase());it.filter(x=>x.c===c).forEach(x=>L.push('[  ]  '+x.n));L.push('')});
+  savePdf(makePdf(L),'liste-courses-'+today()+'.pdf')}
  else if(A==='duonext'){ui.duoI=(ui.duoI||0)+1;render()}
  else if(A==='duodone'){const d=dayEdit(ui.date);d.act=[...(d.act||[]),{type:'autre',min:30,duo:true,label:'Défi duo'}];persist('d-'+ui.date);toast('Séance à deux notée. Bravo à vous deux !');render()}
  else if(A==='sugnext'){ui.sug=(ui.sug||0)+1;render()}

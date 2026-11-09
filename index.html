@@ -320,7 +320,7 @@ const FATFISH=new Set(['saumon','maquereau','sardines','truite']);
 const CATS=[...new Set(FOODS0.map(f=>f.cat))];
 
 /* ---------- menus ---------- */
-const MEALS=[['pdj','Petit-déjeuner'],['midi','Midi'],['coll','Collation'],['diner','Dîner']];
+const MEALS=[['pdj','Petit-déjeuner'],['midi','Midi'],['coll','Collation'],['diner','Dîner'],['soiree','Soirée (grignotage)']];
 const MENUS={
  pdj:[
   {n:'Œufs et pain complet',t:['protéiné'],i:[['oeuf',100],['pain-complet',70],['fb0',100],['pomme',150],['cafe',100]]},
@@ -361,10 +361,18 @@ const MENUS={
   {n:'Soupe, assiette fromage et jambon',t:['fromage'],i:[['soupe',300],['emmental',35],['jambon',40],['pain-complet',50],['salade',80],['vinaigrette',10],['pomme',150]]},
   {n:'Tartines de sardines et salade',t:['poisson gras'],i:[['sardines',90],['pain-complet',60],['salade',100],['tomate',100],['vinaigrette',10],['fb0',100],['orange',150]]},
  ],
+ soiree:[
+  {n:'Un carré de chocolat noir 70 % et une clémentine',t:['le soir'],i:[['choco-noir',5],['clementine',120]]},
+  {n:'Une banane',t:['le soir'],i:[['banane',100]]},
+  {n:'Fromage blanc 0 % et quelques fraises',t:['le soir'],i:[['fb0',150],['fraises',100]]},
+  {n:'Une clémentine et une tisane',t:['le soir'],i:[['clementine',120],['the',250]]},
+  {n:'Une poignée de noix et une tisane',t:['le soir'],i:[['noix',15],['the',250]]},
+  {n:'Un carré de chocolat noir et un café',t:['le soir'],i:[['choco-noir',5],['cafe',100]]},
+ ],
  plaisir:[
   {n:'Une boule de glace',t:['1 fois / semaine'],i:[['glace',50]]},
   {n:'Une tartelette aux fruits',t:['1 fois / semaine'],i:[['tartelette',100]]},
-  {n:'Deux carrés de chocolat noir',t:['petit plaisir'],i:[['choco-noir',20]]},
+  {n:'Deux carrés de chocolat noir',t:['petit plaisir'],i:[['choco-noir',10]]},
   {n:'Merguez de volaille, 1 seule, grillée',t:['1 fois / semaine'],i:[['merguez-volaille',55],['salade',80],['vinaigrette',10]]},
   {n:'Frites au four, 150 g, avec 1 c. à café d’huile',t:['1 fois / semaine'],i:[['frites-four',150],['huile-olive',3]]},
   {n:'Pâtes complètes au beurre salé et parmesan',t:['tes goûts'],i:[['pates-completes',150],['beurre',10],['parmesan',10]]},
@@ -536,7 +544,7 @@ function menuCard(m,key,idx){const it=menuItems(m),T=tot(it);
 function viewMenus(){const k=ui.menuMeal;
  if(k==='courses')return viewCourses();
  const segs=[...MEALS,['plaisir','Plaisir'],['courses','Courses']].map(([kk,l])=>`<button class="sm" aria-pressed="${k===kk}" data-menu="${kk}">${l}</button>`).join('');
- const target={pdj:'Vise 400 à 480 kcal et 25 g de protéines.',midi:'Vise 600 à 700 kcal et 40 g de protéines.',coll:'Facultative. 120 à 170 kcal si tu as faim à 16 h.',diner:'Vise 500 à 560 kcal et 35 g de protéines.',plaisir:'Une fois par semaine, acheté à l’unité. Il est prévu dans le plan.'}[k];
+ const target={soiree:'Facultatif : 50 à 150 kcal, pour les envies du soir.',pdj:'Vise 400 à 480 kcal et 25 g de protéines.',midi:'Vise 600 à 700 kcal et 40 g de protéines.',coll:'Facultative. 120 à 170 kcal si tu as faim à 16 h.',diner:'Vise 500 à 560 kcal et 35 g de protéines.',plaisir:'Une fois par semaine, acheté à l’unité. Il est prévu dans le plan.'}[k];
  return `<div class="top"><div><span class="eyebrow">Idées de repas</span><h1>Menus</h1></div></div>
  <div class="stack"><div class="seg" role="group" aria-label="Repas">${segs}</div>
  <span class="small muted">${target} Les quantités sont modifiables ensuite dans le journal. Ces plats sont familiaux : ta fille mange la même chose, en portion d’enfant, selon sa faim.</span>
@@ -721,10 +729,10 @@ function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'port
  <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="card" id="qsug" style="margin-top:6px;background:var(--green-soft);border:0"></div></div>
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}
-const SHARE={pdj:.25,midi:.35,coll:.1,diner:.3};
+const SHARE={pdj:.25,midi:.35,coll:.1,diner:.3,soiree:.05};
 function suggestQty(f,meal){const m=state.meta,food=day(ui.date).food||[],T=tot(food);
  const left=Math.max(0,m.kcal-T.k),leftP=Math.max(0,m.prot-T.p);
- const open=['pdj','midi','coll','diner'].filter(k=>k===meal||!food.some(e=>e.meal===k));
+ const open=['pdj','midi','coll','diner','soiree'].filter(k=>k===meal||!food.some(e=>e.meal===k));
  const sw=open.reduce((a,k)=>a+(SHARE[k]||0),0)||1,share=(SHARE[meal]||.3)/sw;
  const byK=left*share/Math.max(f.kcal,1)*100,byP=f.prot>0?leftP*share/f.prot*100:Infinity;
  const g=Math.max(0,Math.min((f.ug||100)*2,Math.floor(Math.min(byK,byP)/10)*10));

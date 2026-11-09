@@ -428,7 +428,7 @@ const totalMin=()=>Object.keys(state.days).reduce((s,d)=>s+actMin(d),0);
 let COL=null,flushT=null,migrated=false;const dirty=new Set(),writing=new Set();
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
 function persist(key){saveLocal();if(!COL)return;dirty.add(key);setSync('wait');clearTimeout(flushT);flushT=setTimeout(flush,700)}
-const bodyFor=k=>k==='meta'?{...state.meta,labs:undefined}:(state.days[k.slice(2)]||{});
+const bodyFor=k=>k==='meta'?{...state.meta,labs:undefined,medical:undefined}:(state.days[k.slice(2)]||{});
 async function flush(){let err=false,busy=false;
  for(const k of [...dirty]){if(writing.has(k)){busy=true;continue}dirty.delete(k);writing.add(k);
   try{await COL.doc(k).set(JSON.parse(JSON.stringify(bodyFor(k))))}catch(e){err=true;console.warn(e)}writing.delete(k)}
@@ -447,7 +447,7 @@ async function initSync(){
  const t=setTimeout(()=>{if(syncState==='load')setSync('err')},10000);
  COL.onSnapshot(snap=>{let changed=false;
   for(const d of snap.docs){if(dirty.has(d.id)||writing.has(d.id))continue;const v=d.data();if(!v)continue;
-   if(d.id==='meta'){const nv={...DEF_META(),...v,labs:state.meta.labs||[]};if(JSON.stringify(nv)!==JSON.stringify(state.meta)){state.meta=nv;changed=true}}
+   if(d.id==='meta'){const nv={...DEF_META(),...v,labs:state.meta.labs||[],medical:state.meta.medical};if(JSON.stringify(nv)!==JSON.stringify(state.meta)){state.meta=nv;changed=true}}
    else if(d.id.startsWith('d-')){const k=d.id.slice(2);if(JSON.stringify(v)!==JSON.stringify(state.days[k]||null)){state.days[k]=v;changed=true}}}
   if(!snap.metadata.fromCache){clearTimeout(t);
    if(!migrated){migrated=true;const ids=new Set(snap.docs.map(d=>d.id));if(!ids.has('meta'))persist('meta');for(const k in state.days)if(!ids.has('d-'+k))persist('d-'+k)}
@@ -660,8 +660,10 @@ function viewSuivi(){const m=state.meta,lw=lastWeight(),bmi=lw.w/((m.height/100)
   <div class="card" style="background:var(--surface2);border:0"><span class="small"><b>Glisse le PDF de ta prise de sang ici.</b> Il est lu sur cet appareil, rien n’est envoyé. Vérifie les valeurs avant d’enregistrer.</span><input type="file" id="labpdf" accept="application/pdf"><span id="labmsg" class="small muted"></span></div>
   <div class="grid2"><label class="f">Date<input id="ld" type="date" value="${today()}"></label><label class="f">GGT<input id="lg" type="number" inputmode="numeric"></label>
   <label class="f">ALAT<input id="la" type="number" inputmode="numeric"></label><label class="f">CRP<input id="lc" type="number" inputmode="decimal" step="0.1"></label></div>
+  <div class="grid3"><label class="f">ASAT<input id="las" type="number" inputmode="numeric"></label><label class="f">Plaquettes<input id="lpl" type="number" inputmode="numeric"></label><label class="f">Créatinine<input id="lcr" type="number" inputmode="numeric"></label></div>
   <button class="line" data-act="addlab">Ajouter un bilan</button>
   <span class="small muted">Les normes varient selon le laboratoire. Ton médecin interprète les résultats.</span></div>
+ ${viewMedical()}
  ${syncHtml()}
  </div>`}
 
@@ -730,12 +732,36 @@ const num=(t,re)=>{const m=t.match(re);return m?+m[1].replace(',','.'):null};
 async function labPdf(file){const msg=$('#labmsg');msg.textContent='Lecture du PDF…';
  try{const t=await readPdfText(file);
   const v={ggt:num(t,/GGT[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),alat:num(t,/\b(?:ALAT|ALT)\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),
-   crp:num(t,/\bCRP\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),plaq:num(t,/PLAQUETTES?[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),creat:num(t,/CR[ÉE]ATININE[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i)};
+   crp:num(t,/\bCRP\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),plaq:num(t,/PLAQUETTES?[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),creat:num(t,/CR[ÉE]ATININE[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),asat:num(t,/\b(?:ASAT|AST)\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i)};
   const d=t.match(/(\d{2})\/(\d{2})\/(\d{4})/);if(d)$('#ld').value=d[3]+'-'+d[2]+'-'+d[1];
-  for(const[k,id] of [['ggt','#lg'],['alat','#la'],['crp','#lc']])if(v[k]!=null)$(id).value=v[k];
+  for(const[k,id] of [['ggt','#lg'],['alat','#la'],['crp','#lc'],['asat','#las'],['plaq','#lpl'],['creat','#lcr']])if(v[k]!=null)$(id).value=v[k];
   pendingLab=v;const n=Object.values(v).filter(x=>x!=null).length;
   msg.textContent=n?`${n} valeur${n>1?'s':''} lue${n>1?'s':''} : vérifie avant d’enregistrer.`:'Je n’ai pas trouvé les valeurs. Saisis-les à la main.';
  }catch(e){msg.textContent='Lecture impossible pour ce PDF. Saisis les valeurs à la main.'}}
+
+/* ---------- suivi médical (données locales, jamais synchronisées) ---------- */
+const MEDSEED=['Rendez-vous avec le médecin traitant pour le bilan du foie','Échographie abdominale du foie','Test de fibrose : FIB-4 ou Fibroscan','Bilan hépatique de contrôle dans 3 mois','Vaccins et rappels à jour (à vérifier avec le médecin)'];
+function medical(){if(!state.meta.medical)state.meta.medical={bp:[],todo:MEDSEED.map((t,i)=>({id:'t'+i,t,done:false})),notes:''};return state.meta.medical}
+function viewMedical(){const md=medical(),bp=md.bp.slice().sort((a,b)=>a.d<b.d?1:-1),last=(state.meta.labs||[]).slice().sort((a,b)=>a.date<b.date?1:-1)[0];
+ let fib='';if(last&&last.asat&&last.plaq&&last.alat){const f=52*last.asat/(last.plaq*Math.sqrt(last.alat));
+  fib=`<div class="stat"><span class="small muted">FIB-4 (dernier bilan, 52 ans)</span><b class="num">${f.toFixed(2)}</b><span class="small muted">${f<1.3?'Risque de fibrose faible':f<2.67?'Zone intermédiaire : un test complémentaire est utile':'Risque élevé : à voir vite avec ton médecin'}</span></div>`}
+ return `<div class="top" style="margin-top:12px"><div><span class="eyebrow">Suivi médical</span><h2>Tension, rendez-vous et notes</h2></div></div>
+ <div class="stack">
+ <div class="card"><span class="eyebrow">Tension artérielle</span>
+  ${bp.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Tension</th><th>Pouls</th><th></th></tr></thead><tbody>${bp.slice(0,8).map(b=>`<tr><td>${fshort(b.d)}</td><td class="num">${b.s}/${b.di}</td><td class="num">${b.p??''}</td><td><button class="sm ghost" data-delbp="${b.id}">×</button></td></tr>`).join('')}</tbody></table></div>`:'<span class="small muted">Aucune mesure. Note ta tension au repos, assis depuis 5 minutes.</span>'}
+  <div class="grid3"><label class="f">Date<input id="bpd" type="date" value="${today()}"></label><label class="f">Sys.<input id="bps" type="number" inputmode="numeric"></label><label class="f">Dia.<input id="bpdi" type="number" inputmode="numeric"></label><label class="f">Pouls<input id="bpp" type="number" inputmode="numeric"></label></div>
+  <div class="row"><button data-act="addbp">Noter la tension</button><span class="small muted">Cible souvent citée : moins de 130/80. Ton médecin fixe la tienne.</span></div>
+ </div>
+ ${fib?`<div class="card"><span class="eyebrow">Fibrose du foie</span><div class="grid2">${fib}</div><span class="small muted">Estimation simple à partir de l’ASAT, des plaquettes et de l’ALAT. Demande à ton médecin de la confirmer.</span></div>`:''}
+ <div class="card"><span class="eyebrow">Rendez-vous et examens à prévoir</span>
+  ${md.todo.map(x=>`<label class="check" style="padding:5px 0;${x.done?'color:var(--muted);text-decoration:line-through':''}"><input type="checkbox" data-todo="${x.id}" ${x.done?'checked':''}> ${esc(x.t)}</label>`).join('')}
+  <div class="row" style="flex-wrap:nowrap"><input id="todoin" placeholder="Ajouter un rendez-vous ou un examen"><button class="sm" data-act="addtodo">Ajouter</button></div>
+ </div>
+ <div class="card"><span class="eyebrow">Traitements</span><span>Aucun médicament déclaré. Si cela change, note-le ici.</span></div>
+ <div class="card"><span class="eyebrow">Notes pour le médecin</span>
+  <textarea id="mednotes" placeholder="Symptômes, questions, effets ressentis…">${esc(md.notes||'')}</textarea>
+  <span class="small muted">Notes gardées sur cet appareil uniquement.</span></div>
+ </div>`}
 
 /* ---------- J'ai faim ---------- */
 const FAIM={
@@ -815,6 +841,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  if(D.addmenu){const[k,i]=D.addmenu.split(':');const meal=k==='plaisir'?'coll':k;const save=ui.date;ui.date=today();
   menuItems(MENUS[k][+i]).forEach(e=>addFood(meal,e,e.g));if(k==='plaisir'){dayEdit(today()).plaisir=true;persist('d-'+today())}
   ui.date=save;toast('Ajouté au journal d’aujourd’hui');render();return}
+ if(D.delbp){const md=medical();md.bp=md.bp.filter(x=>x.id!==D.delbp);saveLocal();render();return}
  if(D.bread){const[k,n]=D.bread.split(':');const save=ui.date;ui.date=today();addFood(k,foodById('pain-complet'),35*+n);ui.date=save;toast(n+' tranche'+(n>1?'s':'')+' de pain notée'+(n>1?'s':''));render();return}
  if(D.add){sheetAdd(D.add);return}
  if(D.edit){const e=(day(ui.date).food||[]).find(x=>x.id===D.edit);if(e)sheetAdd(e.meal,e.id);return}
@@ -848,7 +875,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  else if(A==='plaisir'){dayEdit(today()).plaisir=true;persist('d-'+today());ui.menuMeal='plaisir';toast('Savoure-le !');go('menus')}
  else if(A==='qw'){const w=+String($('#qw').value).replace(',','.');if(!(w>30&&w<300)){toast('Poids invalide');return}dayEdit(today()).w=w;persist('d-'+today());toast('Pesée notée');render()}
  else if(A==='addw'){const w=+String($('#ww').value).replace(',','.'),d=$('#wd').value||today();if(!(w>30&&w<300)){toast('Poids invalide');return}const dd=dayEdit(d);dd.w=w;const t=+$('#wt').value;if(t)dd.waist=t;persist('d-'+d);toast('Pesée notée');render()}
- else if(A==='addlab'){const l={id:uid(),date:$('#ld').value||today(),ggt:$('#lg').value?+$('#lg').value:null,alat:$('#la').value?+$('#la').value:null,crp:$('#lc').value?+$('#lc').value:null,plaq:pendingLab?.plaq??null,creat:pendingLab?.creat??null};pendingLab=null;
+ else if(A==='addlab'){const l={id:uid(),date:$('#ld').value||today(),ggt:$('#lg').value?+$('#lg').value:null,alat:$('#la').value?+$('#la').value:null,crp:$('#lc').value?+$('#lc').value:null,plaq:$('#lpl').value?+$('#lpl').value:(pendingLab?.plaq??null),creat:$('#lcr').value?+$('#lcr').value:(pendingLab?.creat??null),asat:$('#las').value?+$('#las').value:(pendingLab?.asat??null)};pendingLab=null;
   if(l.ggt==null&&l.alat==null&&l.crp==null){toast('Indique au moins une valeur');return}state.meta.labs=[...(state.meta.labs||[]),l];persist('meta');render()}
  else if(A==='addact'){const min=+$('#amin').value;if(!min){toast('Indique les minutes');return}const d=dayEdit(ui.date);d.act=[...(d.act||[]),{type:$('#atype').value,min}];persist('d-'+ui.date);
   toast(actMin(ui.date)>=30?'Défi du jour validé !':'Noté');render()}
@@ -876,6 +903,8 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
   winFaim(o.f?'Noté dans ta collation. Bien joué !':'Bien joué !')}
  else if(A==='hzpass'){winFaim('Fringale surmontée. Bravo !')}
  else if(A==='dice'){ui.dice=1+Math.random()*6|0;render()}
+ else if(A==='addbp'){const sy=+$('#bps').value,di=+$('#bpdi').value;if(!sy||!di){toast('Indique la tension');return}const md=medical();md.bp.push({id:uid(),d:$('#bpd').value||today(),s:sy,di,p:+$('#bpp')?.value||null});saveLocal();toast('Tension notée');render()}
+ else if(A==='addtodo'){const v=$('#todoin').value.trim();if(!v)return;const md=medical();md.todo.push({id:uid(),t:v,done:false});saveLocal();render()}
  else if(A==='duonext'){ui.duoI=(ui.duoI||0)+1;render()}
  else if(A==='duodone'){const d=dayEdit(ui.date);d.act=[...(d.act||[]),{type:'autre',min:30,duo:true,label:'Défi duo'}];persist('d-'+ui.date);toast('Séance à deux notée. Bravo à vous deux !');render()}
  else if(A==='sugnext'){ui.sug=(ui.sug||0)+1;render()}
@@ -886,6 +915,8 @@ document.addEventListener('input',ev=>{const t=ev.target;
  if(t.id==='fsearch')renderFList(t.value);
  if(t.id==='qg')updQty()});
 document.addEventListener('change',ev=>{const t=ev.target;
+ if(t.dataset.todo){const md=medical();md.todo=md.todo.map(x=>x.id===t.dataset.todo?{...x,done:t.checked}:x);saveLocal();render();return}
+ if(t.id==='mednotes'){medical().notes=t.value;saveLocal();return}
  if(t.id==='labpdf'&&t.files[0])labPdf(t.files[0]);
  if(t.id==='fsel'&&t.value){addCtx.fid=t.value;renderQty()}
  if(t.dataset.day){const d=dayEdit(today());d[t.dataset.day]=t.checked;persist('d-'+today());render()}

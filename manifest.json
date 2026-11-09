@@ -1,0 +1,9 @@
+{
+  "name": "Cap Santé",
+  "short_name": "Cap Santé",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F3F5F1",
+  "theme_color": "#2E6A4C",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

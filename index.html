@@ -1,3 +1,9 @@
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cap Santé">
+<meta name="theme-color" content="#2E6A4C">
 <title>Cap Santé</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -510,6 +516,8 @@ function alcStreak(){let d=today(),s=0;if(!day(d).noSnack)d=addDays(d,-1);for(le
 function fishThisWeek(){let n=0;for(const d of weekOf(today())){const fs=new Set();for(const e of day(d).food||[])if(FATFISH.has(e.fid))fs.add(e.meal);n+=fs.size}return n}
 function plaisirThisWeek(){return weekOf(today()).filter(d=>day(d).plaisir).length}
 
+function proteinAlert(T,m){const h=new Date().getHours();if(h<18||T.p>=m.prot*.8)return '';const miss=Math.round(m.prot-T.p);
+ return `<div class="card tip"><span class="eyebrow">Protéines à compléter</span><span>Il te manque environ <b>${miss} g</b> de protéines. Un fromage blanc 0 % (150 g) en apporte environ 11 g, un œuf 6 g.</span><button class="sm" data-tab="journal">Ouvrir le journal</button></div>`}
 function weighReminder(){const wd=state.meta.weighDay!=null?+state.meta.weighDay:parse(state.meta.startDate).getDay(),t=today(),tomorrow=addDays(t,1);
  if(day(t).w)return '';
  if(parse(t).getDay()===wd)return `<div class="card tip"><span class="eyebrow">Pesée aujourd’hui</span><span>Pèse-toi ce matin, à jeun, après les toilettes et avant de manger ou de boire.</span></div>`;
@@ -524,6 +532,7 @@ function viewJour(){
  return `${gauges(T,m)}<div class="top"><div><span class="eyebrow">Cap Santé</span><h1>${fdate(d).replace(/^./,c=>c.toUpperCase())}</h1></div><button class="icon" data-act="settings" aria-label="Réglages">⚙</button></div>
  <div class="stack">
  ${weighReminder()}
+ ${proteinAlert(T,m)}
  <button class="orange" data-act="faim" style="min-height:54px;font-size:17px">J’ai faim</button>
  ${suggestCard()}
  <div class="card">${meter('k','Calories',T.k,m.kcal,'kcal')}${meter('p','Protéines',T.p,m.prot,'g')}${meter('a','Activité',am,30,'min')}
@@ -681,6 +690,16 @@ function weightChart(){const pts=[{d:state.meta.startDate,w:+state.meta.startW},
  ${pts.map(p=>`<circle cx="${x(parse(p.d).getTime())}" cy="${y(p.w)}" r="3" fill="var(--blue)"/>`).join('')}
  <circle cx="${x(parse(lp.d).getTime())}" cy="${y(lp.w)}" r="5.5" fill="var(--surface)" stroke="var(--blue)" stroke-width="2.5"/>
  <text x="${L}" y="${H-6}" font-size="10" fill="var(--muted)">${fshort(pts[0].d)}</text><text x="${W-R}" y="${H-6}" font-size="10" text-anchor="end" fill="var(--muted)">${fshort(ymd(new Date(t1)))}</text></svg>`}
+function weekReport(){const wk=weekOf(today()),withFood=wk.filter(d=>(day(d).food||[]).length);
+ const avg=k=>withFood.length?withFood.reduce((a,d)=>a+tot(day(d).food||[])[k],0)/withFood.length:0;
+ const days30=wk.filter(d=>actMin(d)>=30).length,fr=wk.flatMap(d=>(day(d).faimL||[]).map(x=>({...x,d}))).sort((a,b)=>a.d<b.d?1:-1),
+  wts=wk.filter(d=>day(d).w).map(d=>day(d).w);
+ return `<div class="card"><span class="eyebrow">Cette semaine</span>
+  <div class="grid3"><div class="stat"><span class="small muted">Kcal / jour</span><b class="num">${withFood.length?r0(avg('k')):'—'}</b><span class="small muted">objectif ${r0(state.meta.kcal)}</span></div>
+  <div class="stat"><span class="small muted">Protéines / jour</span><b class="num">${withFood.length?r0(avg('p')):'—'}</b><span class="small muted">objectif ${r0(state.meta.prot)} g</span></div>
+  <div class="stat"><span class="small muted">Jours à 30 min</span><b class="num">${days30} / 7</b><span class="small muted">${wts.length?'pesée : '+r1(wts[wts.length-1])+' kg':'pas de pesée'}</span></div></div>
+  <span class="small muted">${withFood.length} jour${withFood.length>1?'s':''} noté${withFood.length>1?'s':''} cette semaine.</span>
+  <div><span class="eyebrow">Fringales surmontées</span>${fr.length?`<ul class="items">${fr.slice(0,8).map(x=>`<li><span>${fshort(x.d)} · ${x.h}</span><span class="muted small">${esc(x.t)}</span></li>`).join('')}</ul>`:'<span class="small muted">Aucune pour l’instant. Touche « J’ai faim » quand ça arrive.</span>'}</div></div>`}
 function viewSuivi(){const m=state.meta,lw=lastWeight(),bmi=lw.w/((m.height/100)**2),lost=m.startW-lw.w,togo=lw.w-m.goalW;
  const weeks=Math.max(1,(parse(lw.d)-parse(m.startDate))/(7*864e5));
  const ws=Object.keys(state.days).filter(d=>state.days[d].w).sort().reverse();
@@ -689,6 +708,7 @@ function viewSuivi(){const m=state.meta,lw=lastWeight(),bmi=lw.w/((m.height/100)
  const alc=alcStreak();
  return `<div class="top"><div><span class="eyebrow">Mes progrès</span><h1>Suivi</h1></div><button class="icon" data-act="settings" aria-label="Réglages">⚙</button></div>
  <div class="stack">
+ ${weekReport()}
  <div class="card"><div class="grid3"><div class="stat"><span class="small muted">Actuel</span><b class="num">${r1(lw.w)}</b><span class="small muted">kg</span></div>
   <div class="stat"><span class="small muted">Perdu</span><b class="num">${r1(lost)}</b><span class="small muted">kg${lost>0&&weeks>=1?` · ${r1(lost/weeks)}/sem`:''}</span></div>
   <div class="stat"><span class="small muted">Reste</span><b class="num">${r1(Math.max(0,togo))}</b><span class="small muted">kg</span></div></div>
@@ -885,7 +905,7 @@ function sheetFaim(){clearInterval(hzIv);const sm=soonMeal();
  openSheet(`<div class="row between"><h2>J’ai faim</h2><button class="icon" data-close="1" aria-label="Fermer">×</button></div>${body}`)}
 function startHzTimer(){clearInterval(hzIv);hzLeft=600;const b=$('#hzbtn');if(b)b.hidden=true;
  hzIv=setInterval(()=>{hzLeft--;const c=$('#hzclock');if(!c){clearInterval(hzIv);return}c.textContent=Math.floor(hzLeft/60)+':'+pad(hzLeft%60);if(hzLeft<=0){clearInterval(hzIv);beep(990,300);c.textContent='Terminé';toast('10 minutes passées. Encore faim ? Choisis un en-cas malin.')}},1000)}
-function winFaim(msg){clearInterval(hzIv);const d=dayEdit(today());d.faim=(d.faim||0)+1;persist('d-'+today());closeSheet();toast(msg)}
+function winFaim(msg){clearInterval(hzIv);const d=dayEdit(today());d.faim=(d.faim||0)+1;const nw=new Date();d.faimL=[...(d.faimL||[]),{h:pad(nw.getHours())+':'+pad(nw.getMinutes()),k:hz.kind,t:(FAIM[hz.kind]||[])[hz.i]?.t||''}];persist('d-'+today());closeSheet();toast(msg)}
 
 /* ---------- minuteur de séance ---------- */
 let tm={i:0,left:SESSION[0][1],run:false,iv:null,ac:null,lock:null};

@@ -488,6 +488,11 @@ function alcStreak(){let d=today(),s=0;if(!day(d).noSnack)d=addDays(d,-1);for(le
 function fishThisWeek(){let n=0;for(const d of weekOf(today())){const fs=new Set();for(const e of day(d).food||[])if(FATFISH.has(e.fid))fs.add(e.meal);n+=fs.size}return n}
 function plaisirThisWeek(){return weekOf(today()).filter(d=>day(d).plaisir).length}
 
+function weighReminder(){const wd=state.meta.weighDay!=null?+state.meta.weighDay:parse(state.meta.startDate).getDay(),t=today(),tomorrow=addDays(t,1);
+ if(day(t).w)return '';
+ if(parse(t).getDay()===wd)return `<div class="card tip"><span class="eyebrow">Pesée aujourd’hui</span><span>Pèse-toi ce matin, à jeun, après les toilettes et avant de manger ou de boire.</span></div>`;
+ if(parse(tomorrow).getDay()===wd)return `<div class="card tip"><span class="eyebrow">Rappel pour demain</span><span>Demain matin, pèse-toi à jeun, après les toilettes et avant de manger. Ta pesée de la semaine est prévue.</span><button class="sm" data-act="gotoweigh">Noter ma pesée</button></div>`;
+ return ''}
 function viewJour(){
  const d=today(),dd=day(d),f=dd.food||[],T=tot(f),m=state.meta,am=actMin(d),st=actStreak(),lw=lastWeight();
  const tip=TIPS[(parse(d)-parse('2026-01-01'))/864e5%TIPS.length|0];
@@ -496,6 +501,7 @@ function viewJour(){
  const water=dd.water||0;
  return `<div class="top"><div><span class="eyebrow">Cap Santé</span><h1>${fdate(d).replace(/^./,c=>c.toUpperCase())}</h1></div><button class="icon" data-act="settings" aria-label="Réglages">⚙</button></div>
  <div class="stack">
+ ${weighReminder()}
  <button class="orange" data-act="faim" style="min-height:54px;font-size:17px">J’ai faim</button>
  ${suggestCard()}
  <div class="card">${meter('k','Calories',T.k,m.kcal,'kcal')}${meter('p','Protéines',T.p,m.prot,'g')}${meter('a','Activité',am,30,'min')}
@@ -744,6 +750,7 @@ function sheetSettings(){const m=state.meta;
  <label class="f">Poids de départ (kg)<input id="s-sw" type="number" step="0.1" value="${m.startW}"></label><label class="f">Date de départ<input id="s-sd" type="date" value="${m.startDate}"></label>
  <label class="f">Objectif (kg)<input id="s-g" type="number" step="0.1" value="${m.goalW}"></label><label class="f">Taille (cm)<input id="s-h" type="number" value="${m.height}"></label>
  <label class="f">Verres d’eau / jour<input id="s-w" type="number" value="${m.water}"></label></div>
+ <label class="f">Jour de pesée (rappel la veille)<select id="s-wd">${JOURS.map((j,i)=>`<option value="${i}" ${(m.weighDay??parse(m.startDate).getDay())==i?'selected':''}>${j}</option>`).join('')}</select></label>
  <button data-act="savesettings">Enregistrer</button>
  <div class="card"><span class="eyebrow">Sauvegarde</span><span class="small muted">Tes données sont enregistrées sur ton compte et sur l’appareil. Pour une copie de secours, copie ce texte et garde-le dans tes notes. Pour restaurer, colle-le puis touche « Restaurer ».</span>
  <textarea id="bk">${esc(JSON.stringify(state))}</textarea><div class="row"><button class="sm ghost" data-act="copybk">Copier</button><button class="sm line" data-act="restore">Restaurer</button></div></div>`)}
@@ -888,6 +895,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
   menuItems(MENUS[k][+i]).forEach(e=>addFood(meal,e,e.g));if(k==='plaisir'){dayEdit(today()).plaisir=true;persist('d-'+today())}
   ui.date=save;toast('Ajouté au journal d’aujourd’hui');render();return}
  if(D.delbp){const md=medical();md.bp=md.bp.filter(x=>x.id!==D.delbp);saveLocal();render();return}
+ if(D.delbp){const md=medical();md.bp=md.bp.filter(x=>x.id!==D.delbp);saveLocal();render();return}
  if(D.bread){const[k,n]=D.bread.split(':');const save=ui.date;ui.date=today();addFood(k,foodById('pain-complet'),35*+n);ui.date=save;toast(n+' tranche'+(n>1?'s':'')+' de pain notée'+(n>1?'s':''));render();return}
  if(D.add){sheetAdd(D.add);return}
  if(D.edit){const e=(day(ui.date).food||[]).find(x=>x.id===D.edit);if(e)sheetAdd(e.meal,e.id);return}
@@ -932,7 +940,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  else if(A==='tnext'){if(tm.i<SESSION.length-1){tm.i++;tm.left=SESSION[tm.i][1];drawTimer()}else finishSession()}
  else if(A==='tprev'){if(tm.i>0){tm.i--;}tm.left=SESSION[tm.i][1];drawTimer()}
  else if(A==='savesettings'){const m=state.meta;const n=(id,def)=>{const v=+$(id).value;return v>0?v:def};
-  Object.assign(m,{kcal:n('#s-k',m.kcal),prot:n('#s-p',m.prot),startW:n('#s-sw',m.startW),goalW:n('#s-g',m.goalW),height:n('#s-h',m.height),water:Math.min(12,n('#s-w',m.water)),startDate:$('#s-sd').value||m.startDate});
+  Object.assign(m,{kcal:n('#s-k',m.kcal),prot:n('#s-p',m.prot),startW:n('#s-sw',m.startW),goalW:n('#s-g',m.goalW),height:n('#s-h',m.height),water:Math.min(12,n('#s-w',m.water)),startDate:$('#s-sd').value||m.startDate,weighDay:+$('#s-wd').value});
   persist('meta');closeSheet();toast('Réglages enregistrés')}
  else if(A==='copybk'){const t=$('#bk');navigator.clipboard?.writeText(t.value).then(()=>toast('Copié'),()=>{t.select();toast('Texte sélectionné : copie-le')})||(t.select())}
  else if(A==='restore'){try{const s=JSON.parse($('#bk').value);if(!s.meta||!s.days)throw 0;state={meta:{...DEF_META(),...s.meta},days:s.days};persist('meta');for(const k in state.days)persist('d-'+k);closeSheet();toast('Données restaurées')}catch(e){toast('Texte de sauvegarde invalide')}}

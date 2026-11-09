@@ -322,6 +322,11 @@ const FOODS0=[
  ['pizza-maison','Pizza maison fine (base blé complet)','Plaisir',230,9,'part',120],
  ['cookie-light','Biscuit 0 % maison (1 pièce)','Plaisir',120,4,'biscuit',30],
  ['glace-yaourt','Glace yaourt (1 boule)','Plaisir',120,4,'boule',60],
+ ['creme-fraiche-15','Crème fraîche allégée 15 %','Laitages & fromages',150,3.2,'c. à soupe',15],
+ ['creme-fraiche-30','Crème fraîche épaisse 30 %','Laitages & fromages',290,2.3,'c. à soupe',15],
+ ['creme-liquide-30','Crème liquide 30 %','Laitages & fromages',290,2.5,'c. à soupe',15],
+ ['creme-liquide-15','Crème liquide allégée 15 %','Laitages & fromages',160,3,'c. à soupe',15],
+ ['creme-liquide-entamer','Crème liquide légère (entamer)','Laitages & fromages',200,3,'c. à soupe',15],
 ].map(([id,name,cat,kcal,prot,unit,ug])=>({id,name,cat,kcal,prot,unit,ug}));
 const FATFISH=new Set(['saumon','maquereau','sardines','truite']);
 const CATS=[...new Set(FOODS0.map(f=>f.cat))];

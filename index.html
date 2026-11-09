@@ -709,10 +709,10 @@ function renderFList(q){q=q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''
 function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'portion',ug:100};addCtx.f=f;
  $('#pick').hidden=true;$('#qty').hidden=false;
  $('#qty').innerHTML=`<div><b>${esc(f.name)}</b><div class="small muted">${f.kcal} kcal et ${f.prot} g de protéines pour 100 g</div></div>
- <label class="f">Quantité en grammes<input id="qg" type="number" inputmode="decimal" value="${g??f.ug}"></label>
+ <label class="f">Quantité en grammes<input id="qg" type="number" inputmode="decimal" value="${g??(suggestQty(f,addCtx.meal).g||f.ug)}"></label>
  <div class="row">${[0.5,1,2,3].map(n=>`<button class="sm ghost" data-portion="${n}">${n===0.5?'½':n} ${esc(f.unit||'portion')}${n>1&&!/s$|^c\. à/.test(f.unit||'')?'s':''} (${r0(n*(f.ug||100))} g)</button>`).join('')}</div>
  <div class="row">${[['1 c. à café',5],['2 c. à café',10],['1 c. à soupe',15],['2 c. à soupe',30],...(addCtx.fid==='miel'?[['1 c. à soupe de miel',21]]:[]),['1 poignée',15],['1 carré',5]].map(([l,g])=>`<button class="sm line" data-grams="${g}">${l} (${g} g)</button>`).join('')}</div>
- <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="small" id="qsug" style="margin-top:6px"></div></div>
+ <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="card" id="qsug" style="margin-top:6px;background:var(--green-soft);border:0"></div></div>
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}
 const SHARE={pdj:.25,midi:.35,coll:.1,diner:.3};

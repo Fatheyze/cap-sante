@@ -208,6 +208,7 @@ const FOODS0=[
  ['courgette','Courgette','Légumes',17,1.2,'portion',250],
  ['champignons','Champignons','Légumes',25,3,'portion',150],
  ['soupe','Soupe de légumes maison','Légumes',35,1.2,'bol',300],
+ ['butternut','Soupe butternut maison (sans crème)','Légumes',45,1.2,'bol',300],
  ['crudites','Crudités (carotte, concombre…)','Légumes',30,1,'assiette',150],
  ['pomme','Pomme','Fruits',54,0.3,'pomme',150],
  ['poire','Poire','Fruits',55,0.4,'poire',150],
@@ -613,10 +614,14 @@ function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'port
  $('#qty').innerHTML=`<div><b>${esc(f.name)}</b><div class="small muted">${f.kcal} kcal et ${f.prot} g de protéines pour 100 g</div></div>
  <label class="f">Quantité en grammes<input id="qg" type="number" inputmode="decimal" value="${g??f.ug}"></label>
  <div class="row">${[0.5,1,2,3].map(n=>`<button class="sm ghost" data-portion="${n}">${n===0.5?'½':n} ${esc(f.unit||'portion')}${n>1&&!/s$/.test(f.unit||'')?'s':''} (${r0(n*(f.ug||100))} g)</button>`).join('')}</div>
- <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span></div>
+ <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="small" id="qsug" style="margin-top:6px"></div></div>
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}
-function updQty(){const g=+$('#qg').value||0,f=addCtx.f;$('#qres').innerHTML=`<b>${r0(g*f.kcal/100)}</b> kcal · <b>${r1(g*f.prot/100)}</b> g de protéines`}
+const SHARE={pdj:.25,midi:.35,coll:.1,diner:.3};
+function suggestQty(f,meal){const m=state.meta,T=tot(day(ui.date).food||[]),left=Math.max(0,m.kcal-T.k),bud=left*(SHARE[meal]||.3);
+ const g=Math.max(0,Math.min((f.ug||100)*2,Math.floor(bud/Math.max(f.kcal,1)*100/10)*10));return{g,left}}
+function updQty(){const g=+$('#qg').value||0,f=addCtx.f;$('#qres').innerHTML=`<b>${r0(g*f.kcal/100)}</b> kcal · <b>${r1(g*f.prot/100)}</b> g de protéines`;
+ const s=suggestQty(f,addCtx.meal);$('#qsug').innerHTML=s.g>0?`Conseil pour ce repas : jusqu’à <b>${s.g} g</b>, il te reste ${r0(s.left)} kcal aujourd’hui.${f.prot<8?' Ajoute une protéine (œuf, poulet, fromage blanc 0 %) pour bien tenir.':''}`:'Il ne reste presque plus de kcal aujourd’hui : une soupe ou des crudités suffisent.'}
 function sheetFood(id){const f=id?foodById(id):{name:'',cat:'Mes aliments',kcal:'',prot:'',unit:'portion',ug:100};
  openSheet(`<div class="row between"><h2>${id?'Modifier l’aliment':'Nouvel aliment'}</h2><button class="icon" data-close="1" aria-label="Fermer">×</button></div>
  <span class="small muted">Regarde l’étiquette : valeurs « pour 100 g ».</span>

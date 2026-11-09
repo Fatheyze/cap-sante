@@ -135,6 +135,7 @@ textarea{font:inherit;font-size:12px;width:100%;min-height:120px;border-radius:1
 <nav class="tabs" aria-label="Sections"><div class="in" id="tabs"></div></nav>
 <div id="sheet"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 /* ---------- utilitaires ---------- */
 const $=s=>document.querySelector(s);
@@ -427,7 +428,7 @@ const totalMin=()=>Object.keys(state.days).reduce((s,d)=>s+actMin(d),0);
 let COL=null,flushT=null,migrated=false;const dirty=new Set(),writing=new Set();
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
 function persist(key){saveLocal();if(!COL)return;dirty.add(key);setSync('wait');clearTimeout(flushT);flushT=setTimeout(flush,700)}
-const bodyFor=k=>k==='meta'?state.meta:(state.days[k.slice(2)]||{});
+const bodyFor=k=>k==='meta'?{...state.meta,labs:undefined}:(state.days[k.slice(2)]||{});
 async function flush(){let err=false,busy=false;
  for(const k of [...dirty]){if(writing.has(k)){busy=true;continue}dirty.delete(k);writing.add(k);
   try{await COL.doc(k).set(JSON.parse(JSON.stringify(bodyFor(k))))}catch(e){err=true;console.warn(e)}writing.delete(k)}
@@ -446,7 +447,7 @@ async function initSync(){
  const t=setTimeout(()=>{if(syncState==='load')setSync('err')},10000);
  COL.onSnapshot(snap=>{let changed=false;
   for(const d of snap.docs){if(dirty.has(d.id)||writing.has(d.id))continue;const v=d.data();if(!v)continue;
-   if(d.id==='meta'){const nv={...DEF_META(),...v};if(JSON.stringify(nv)!==JSON.stringify(state.meta)){state.meta=nv;changed=true}}
+   if(d.id==='meta'){const nv={...DEF_META(),...v,labs:state.meta.labs||[]};if(JSON.stringify(nv)!==JSON.stringify(state.meta)){state.meta=nv;changed=true}}
    else if(d.id.startsWith('d-')){const k=d.id.slice(2);if(JSON.stringify(v)!==JSON.stringify(state.days[k]||null)){state.days[k]=v;changed=true}}}
   if(!snap.metadata.fromCache){clearTimeout(t);
    if(!migrated){migrated=true;const ids=new Set(snap.docs.map(d=>d.id));if(!ids.has('meta'))persist('meta');for(const k in state.days)if(!ids.has('d-'+k))persist('d-'+k)}
@@ -656,6 +657,7 @@ function viewSuivi(){const m=state.meta,lw=lastWeight(),bmi=lw.w/((m.height/100)
   <div class="tw"><table><thead><tr><th>Date</th><th>GGT</th><th>ALAT</th><th>CRP</th><th></th></tr></thead><tbody>
   ${labs.map(l=>`<tr><td>${fshort(l.date)}/${l.date.slice(2,4)}</td><td class="num">${l.ggt??''}</td><td class="num">${l.alat??''}</td><td class="num">${l.crp??''}</td><td><button class="sm ghost" data-dellab="${l.id}">×</button></td></tr>`).join('')}
   <tr><td class="small muted">Normes</td><td class="small muted">&lt; 55</td><td class="small muted">&lt; 45</td><td class="small muted">&lt; 5</td><td></td></tr></tbody></table></div>
+  <div class="card" style="background:var(--surface2);border:0"><span class="small"><b>Glisse le PDF de ta prise de sang ici.</b> Il est lu sur cet appareil, rien n’est envoyé. Vérifie les valeurs avant d’enregistrer.</span><input type="file" id="labpdf" accept="application/pdf"><span id="labmsg" class="small muted"></span></div>
   <div class="grid2"><label class="f">Date<input id="ld" type="date" value="${today()}"></label><label class="f">GGT<input id="lg" type="number" inputmode="numeric"></label>
   <label class="f">ALAT<input id="la" type="number" inputmode="numeric"></label><label class="f">CRP<input id="lc" type="number" inputmode="decimal" step="0.1"></label></div>
   <button class="line" data-act="addlab">Ajouter un bilan</button>
@@ -719,6 +721,21 @@ function sheetSettings(){const m=state.meta;
  <button data-act="savesettings">Enregistrer</button>
  <div class="card"><span class="eyebrow">Sauvegarde</span><span class="small muted">Tes données sont enregistrées sur ton compte et sur l’appareil. Pour une copie de secours, copie ce texte et garde-le dans tes notes. Pour restaurer, colle-le puis touche « Restaurer ».</span>
  <textarea id="bk">${esc(JSON.stringify(state))}</textarea><div class="row"><button class="sm ghost" data-act="copybk">Copier</button><button class="sm line" data-act="restore">Restaurer</button></div></div>`)}
+
+/* ---------- bilan sanguin (PDF lu sur l'appareil) ---------- */
+let pendingLab=null;
+async function readPdfText(file){const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let t='';
+ for(let i=1;i<=doc.numPages;i++){const c=await (await doc.getPage(i)).getTextContent();t+=c.items.map(x=>x.str).join(' ')+'\n'}return t}
+const num=(t,re)=>{const m=t.match(re);return m?+m[1].replace(',','.'):null};
+async function labPdf(file){const msg=$('#labmsg');msg.textContent='Lecture du PDF…';
+ try{const t=await readPdfText(file);
+  const v={ggt:num(t,/GGT[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),alat:num(t,/\b(?:ALAT|ALT)\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),
+   crp:num(t,/\bCRP\b[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),plaq:num(t,/PLAQUETTES?[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i),creat:num(t,/CR[ÉE]ATININE[^0-9\n]{0,40}?(\d+(?:[.,]\d+)?)/i)};
+  const d=t.match(/(\d{2})\/(\d{2})\/(\d{4})/);if(d)$('#ld').value=d[3]+'-'+d[2]+'-'+d[1];
+  for(const[k,id] of [['ggt','#lg'],['alat','#la'],['crp','#lc']])if(v[k]!=null)$(id).value=v[k];
+  pendingLab=v;const n=Object.values(v).filter(x=>x!=null).length;
+  msg.textContent=n?`${n} valeur${n>1?'s':''} lue${n>1?'s':''} : vérifie avant d’enregistrer.`:'Je n’ai pas trouvé les valeurs. Saisis-les à la main.';
+ }catch(e){msg.textContent='Lecture impossible pour ce PDF. Saisis les valeurs à la main.'}}
 
 /* ---------- J'ai faim ---------- */
 const FAIM={
@@ -831,7 +848,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  else if(A==='plaisir'){dayEdit(today()).plaisir=true;persist('d-'+today());ui.menuMeal='plaisir';toast('Savoure-le !');go('menus')}
  else if(A==='qw'){const w=+String($('#qw').value).replace(',','.');if(!(w>30&&w<300)){toast('Poids invalide');return}dayEdit(today()).w=w;persist('d-'+today());toast('Pesée notée');render()}
  else if(A==='addw'){const w=+String($('#ww').value).replace(',','.'),d=$('#wd').value||today();if(!(w>30&&w<300)){toast('Poids invalide');return}const dd=dayEdit(d);dd.w=w;const t=+$('#wt').value;if(t)dd.waist=t;persist('d-'+d);toast('Pesée notée');render()}
- else if(A==='addlab'){const l={id:uid(),date:$('#ld').value||today(),ggt:$('#lg').value?+$('#lg').value:null,alat:$('#la').value?+$('#la').value:null,crp:$('#lc').value?+$('#lc').value:null};
+ else if(A==='addlab'){const l={id:uid(),date:$('#ld').value||today(),ggt:$('#lg').value?+$('#lg').value:null,alat:$('#la').value?+$('#la').value:null,crp:$('#lc').value?+$('#lc').value:null,plaq:pendingLab?.plaq??null,creat:pendingLab?.creat??null};pendingLab=null;
   if(l.ggt==null&&l.alat==null&&l.crp==null){toast('Indique au moins une valeur');return}state.meta.labs=[...(state.meta.labs||[]),l];persist('meta');render()}
  else if(A==='addact'){const min=+$('#amin').value;if(!min){toast('Indique les minutes');return}const d=dayEdit(ui.date);d.act=[...(d.act||[]),{type:$('#atype').value,min}];persist('d-'+ui.date);
   toast(actMin(ui.date)>=30?'Défi du jour validé !':'Noté');render()}
@@ -869,6 +886,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
  if(t.id==='fsearch')renderFList(t.value);
  if(t.id==='qg')updQty()});
 document.addEventListener('change',ev=>{const t=ev.target;
+ if(t.id==='labpdf'&&t.files[0])labPdf(t.files[0]);
  if(t.id==='fsel'&&t.value){addCtx.fid=t.value;renderQty()}
  if(t.dataset.day){const d=dayEdit(today());d[t.dataset.day]=t.checked;persist('d-'+today());render()}
  if(t.dataset.duo){ui.duo=t.checked;return}

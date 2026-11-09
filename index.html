@@ -222,13 +222,13 @@ const FOODS0=[
  ['huile-olive','Huile d’olive','Matières grasses & divers',900,0,'c. à soupe',10],
  ['vinaigrette','Vinaigrette maison (recette du plan)','Matières grasses & divers',300,0.5,'c. à soupe',15],
  ['beurre','Beurre salé 82 %','Matières grasses & divers',745,0.7,'fine couche',10],
- ['noix','Noix','Matières grasses & divers',700,15,'poignée',20],
+ ['noix','Noix (cerneaux)','Matières grasses & divers',700,15,'poignée',15],
  ['amandes','Amandes','Matières grasses & divers',600,21,'poignée',20],
  ['avocat','Avocat','Matières grasses & divers',160,2,'½ avocat',80],
  ['houmous','Houmous','Matières grasses & divers',290,8,'c. à soupe',30],
  ['miel','Miel','Matières grasses & divers',320,0.4,'c. à café',7],
  ['confiture','Confiture','Matières grasses & divers',250,0.5,'c. à café',10],
- ['choco-noir','Chocolat noir 70 %','Plaisir',580,8,'carré',10],
+ ['choco-noir','Chocolat noir 70 %','Plaisir',580,8,'carré',5],
  ['glace','Glace (boule)','Plaisir',200,3.5,'boule',50],
  ['tartelette','Tartelette aux fruits','Plaisir',280,4,'tartelette',100],
  ['cafe','Café noir sans sucre','Boissons',2,0.2,'tasse',100],
@@ -701,7 +701,8 @@ function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'port
  $('#pick').hidden=true;$('#qty').hidden=false;
  $('#qty').innerHTML=`<div><b>${esc(f.name)}</b><div class="small muted">${f.kcal} kcal et ${f.prot} g de protéines pour 100 g</div></div>
  <label class="f">Quantité en grammes<input id="qg" type="number" inputmode="decimal" value="${g??f.ug}"></label>
- <div class="row">${[0.5,1,2,3].map(n=>`<button class="sm ghost" data-portion="${n}">${n===0.5?'½':n} ${esc(f.unit||'portion')}${n>1&&!/s$/.test(f.unit||'')?'s':''} (${r0(n*(f.ug||100))} g)</button>`).join('')}</div>
+ <div class="row">${[0.5,1,2,3].map(n=>`<button class="sm ghost" data-portion="${n}">${n===0.5?'½':n} ${esc(f.unit||'portion')}${n>1&&!/s$|^c\. à/.test(f.unit||'')?'s':''} (${r0(n*(f.ug||100))} g)</button>`).join('')}</div>
+ <div class="row">${[['1 c. à café',5],['2 c. à café',10],['1 c. à soupe',15],['2 c. à soupe',30],...(addCtx.fid==='miel'?[['1 c. à soupe de miel',21]]:[]),['1 poignée',15],['1 carré',5]].map(([l,g])=>`<button class="sm line" data-grams="${g}">${l} (${g} g)</button>`).join('')}</div>
  <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="small" id="qsug" style="margin-top:6px"></div></div>
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}
@@ -878,6 +879,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  if(D.edit){const e=(day(ui.date).food||[]).find(x=>x.id===D.edit);if(e)sheetAdd(e.meal,e.id);return}
  if(D.del){const d=dayEdit(ui.date);d.food=(d.food||[]).filter(x=>x.id!==D.del);persist('d-'+ui.date);render();return}
  if(D.pick){addCtx.fid=D.pick;renderQty();return}
+ if(D.grams){$('#qg').value=+D.grams;updQty();return}
  if(D.portion){$('#qg').value=r0(+D.portion*(addCtx.f.ug||100));updQty();return}
  if(D.delact!==undefined){const d=dayEdit(ui.date);d.act=(d.act||[]).filter((_,i)=>i!==+D.delact);persist('d-'+ui.date);render();return}
  if(D.quick){const d=dayEdit(ui.date);d.act=[...(d.act||[]),{type:D.quick==='10'?'marche':'velo',min:+D.quick}];persist('d-'+ui.date);render();return}

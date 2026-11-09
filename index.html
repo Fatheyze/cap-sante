@@ -234,7 +234,7 @@ const FOODS0=[
  ['cafe','Café noir sans sucre','Boissons',2,0.2,'tasse',100],
  ['the','Thé ou tisane sans sucre','Boissons',1,0,'tasse',250],
  ['bouillon','Bouillon de légumes','Légumes',8,0.5,'bol',300],
- ['cornichons','Cornichons','Légumes',15,0.8,'portion',40],
+ ['cornichons','Cornichons (moyen = 10 g)','Légumes',15,0.8,'cornichon',10],
  ['sauce-tomate','Sauce tomate nature','Légumes',40,1.5,'portion',150],
  ['frites-four','Frites maison au four / airfryer (1 c. à café d’huile)','Féculents',120,2.3,'portion',200],
  ['frites','Frites de friteuse','Plaisir',300,3.5,'portion',150],
@@ -725,7 +725,7 @@ function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'port
  $('#qty').innerHTML=`<div><b>${esc(f.name)}</b><div class="small muted">${f.kcal} kcal et ${f.prot} g de protéines pour 100 g</div></div>
  <label class="f">Quantité en grammes<input id="qg" type="number" inputmode="decimal" value="${g??(suggestQty(f,addCtx.meal).g||f.ug)}"></label>
  <div class="row">${[0.5,1,2,3].map(n=>`<button class="sm ghost" data-portion="${n}">${n===0.5?'½':n} ${esc(f.unit||'portion')}${n>1&&!/s$|^c\. à/.test(f.unit||'')?'s':''} (${r0(n*(f.ug||100))} g)</button>`).join('')}</div>
- <div class="row">${[['1 c. à café',5],['2 c. à café',10],['1 c. à soupe',15],['2 c. à soupe',30],...(addCtx.fid==='miel'?[['1 c. à soupe de miel',21]]:[]),['1 poignée',15],['1 carré',5]].map(([l,g])=>`<button class="sm line" data-grams="${g}">${l} (${g} g)</button>`).join('')}</div>
+ <div class="row">${[['1 c. à café',5],['2 c. à café',10],['1 c. à soupe',15],['2 c. à soupe',30],...(addCtx.fid==='miel'?[['1 c. à soupe de miel',21]]:[]),...(addCtx.fid==='cornichons'?[['1 petit cornichon',5],['1 moyen',10],['1 gros',20],['3 moyens',30],['5 petits',25]]:[]),['1 poignée',15],['1 carré',5]].map(([l,g])=>`<button class="sm line" data-grams="${g}">${l} (${g} g)</button>`).join('')}</div>
  <div class="card" style="background:var(--surface2);border:0"><span class="num" id="qres"></span><div class="card" id="qsug" style="margin-top:6px;background:var(--green-soft);border:0"></div></div>
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}

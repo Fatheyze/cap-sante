@@ -716,10 +716,15 @@ function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'port
  <button data-act="confirmadd">${addCtx.editId?'Enregistrer':'Ajouter au journal'}</button>`;
  updQty()}
 const SHARE={pdj:.25,midi:.35,coll:.1,diner:.3};
-function suggestQty(f,meal){const m=state.meta,T=tot(day(ui.date).food||[]),left=Math.max(0,m.kcal-T.k),bud=left*(SHARE[meal]||.3);
- const g=Math.max(0,Math.min((f.ug||100)*2,Math.floor(bud/Math.max(f.kcal,1)*100/10)*10));return{g,left}}
+function suggestQty(f,meal){const m=state.meta,food=day(ui.date).food||[],T=tot(food);
+ const left=Math.max(0,m.kcal-T.k),leftP=Math.max(0,m.prot-T.p);
+ const open=['pdj','midi','coll','diner'].filter(k=>k===meal||!food.some(e=>e.meal===k));
+ const sw=open.reduce((a,k)=>a+(SHARE[k]||0),0)||1,share=(SHARE[meal]||.3)/sw;
+ const byK=left*share/Math.max(f.kcal,1)*100,byP=f.prot>0?leftP*share/f.prot*100:Infinity;
+ const g=Math.max(0,Math.min((f.ug||100)*2,Math.floor(Math.min(byK,byP)/10)*10));
+ return{g,left:r0(left),leftP:r0(leftP)}}
 function updQty(){const g=+$('#qg').value||0,f=addCtx.f;$('#qres').innerHTML=`<b>${r0(g*f.kcal/100)}</b> kcal · <b>${r1(g*f.prot/100)}</b> g de protéines`;
- const s=suggestQty(f,addCtx.meal);$('#qsug').innerHTML=s.g>0?`Conseil pour ce repas : jusqu’à <b>${s.g} g</b>, il te reste ${r0(s.left)} kcal aujourd’hui.${f.prot<8?' Ajoute une protéine (œuf, poulet, fromage blanc 0 %) pour bien tenir.':''}`:'Il ne reste presque plus de kcal aujourd’hui : une soupe ou des crudités suffisent.'}
+ const s=suggestQty(f,addCtx.meal);$('#qsug').innerHTML=s.g>0?`Pour ce repas, il te reste <b>${s.left} kcal</b> et <b>${s.leftP} g</b> de protéines. <b>${f.name.replace(/ \(.*\)$/,'')} : jusqu’à ${s.g} g</b> sans dépasser.`:`Il ne reste presque plus de kcal pour ce repas (${s.left} kcal) : une soupe ou des crudités suffisent.`}
 function sheetFood(id){const f=id?foodById(id):{name:'',cat:'Mes aliments',kcal:'',prot:'',unit:'portion',ug:100};
  openSheet(`<div class="row between"><h2>${id?'Modifier l’aliment':'Nouvel aliment'}</h2><button class="icon" data-close="1" aria-label="Fermer">×</button></div>
  <span class="small muted">Regarde l’étiquette : valeurs « pour 100 g ».</span>

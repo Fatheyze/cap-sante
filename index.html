@@ -192,7 +192,7 @@ const FOODS0=[
  ['thon','Thon au naturel','Poissons',115,26,'boîte',140],
  ['crevettes','Crevettes cuites','Poissons',95,21,'portion',120],
  ['surimi','Surimi','Poissons',110,8,'bâtonnet',15],
- ['fb0','Fromage blanc 0 %','Laitages & fromages',47,7.5,'pot',100],
+ ['fb0','Fromage blanc 0 %','Laitages & fromages',47,7.5,'pot',150],
  ['fb20','Fromage blanc 20 %','Laitages & fromages',80,7,'pot',100],
  ['skyr','Skyr nature','Laitages & fromages',60,10.5,'pot',150],
  ['yaourt','Yaourt nature','Laitages & fromages',50,4,'pot',125],
@@ -566,11 +566,14 @@ function viewCourses(){const l=shop(),cats=[...new Set(l.map(x=>x.c))],left=l.fi
  <div class="card"><span class="eyebrow">À ne pas acheter</span><span class="small">Les aliments qui te font craquer (gâteaux, chips, biscuits). S’ils ne sont pas à la maison, tu ne peux pas les grignoter. Ton plaisir de la semaine s’achète à l’unité, le jour même.</span></div>
  </div>`}
 
+function equivCard(){const rows=[['1 tranche de pain complet','35 g (2 tranches = 70 g)'],['10 g de beurre salé','2 c. à café, ou une fine couche'],['1 c. à café de miel','7 g (1 c. à soupe = 21 g)'],['1 poignée de noix','15 g, soit 7 à 8 cerneaux'],['1 carré de chocolat noir 70 %','5 g'],['1 petit pot de fromage blanc 0 %','150 g'],['1 œuf','50 g (3 œufs = 150 g)']];
+ return `<details class="card"><summary>Équivalences : combien ça pèse ?</summary><ul class="items" style="margin-top:8px">${rows.map(([a,b])=>`<li><span>${esc(a)}</span><span class="num muted">${esc(b)}</span></li>`).join('')}</ul><span class="small muted">Les boutons du champ de quantité ajoutent ces mesures en un geste.</span></details>`}
 function viewJournal(){const d=ui.date,f=day(d).food||[],T=tot(f),m=state.meta;
  return `<div class="top"><div><span class="eyebrow">Ce que je mange</span><h1>Journal</h1></div><button class="sm ghost" data-act="foods">Mes aliments</button></div>
  <div class="stack">${dateNav()}
  <div class="card">${meter('k','Calories',T.k,m.kcal,'kcal')}${meter('p','Protéines',T.p,m.prot,'g')}
   <span class="small muted">${T.k>m.kcal?`Tu dépasses de ${r0(T.k-m.kcal)} kcal. Pas grave : on se recale au prochain repas.`:`Il te reste ${r0(m.kcal-T.k)} kcal pour la journée.`}</span></div>
+ ${equivCard()}
  ${MEALS.map(([k,l])=>{const es=f.filter(e=>e.meal===k),t=tot(es);
   return `<div class="card"><div class="row between"><h2>${l}</h2><span class="small muted num">${r0(t.k)} kcal · ${r0(t.p)} g</span></div>
   ${es.length?`<div>${es.map(e=>`<div class="entry"><div class="n"><b>${esc(e.name)}</b><span class="small muted num">${e.g} g · ${r0(e.g*e.kcal/100)} kcal · ${r1(e.g*e.prot/100)} g prot.</span></div>

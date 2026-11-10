@@ -756,8 +756,8 @@ function sheetAdd(meal,editId){addCtx={meal,editId,fid:null};
  if(e)renderQty(e.g);else{renderFList('');setTimeout(()=>$('#fsearch')?.focus(),50)}}
 function foodSelect(){const all=foods(),cats=[...new Set(all.map(f=>f.cat))];
  return `<label class="f">Choisir dans la liste (${all.length} aliments)<select id="fsel"><option value="">— Sélectionne un aliment —</option>${cats.map(c=>`<optgroup label="${esc(c)}">${all.filter(f=>f.cat===c).sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</optgroup>`).join('')}</select></label>`}
-function renderFList(q){q=q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
- const l=foods().filter(f=>f.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q));
+function renderFList(q){const sn=x=>x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/s\b/g,'');q=sn(q);
+ const l=foods().filter(f=>sn(f.name).includes(q));
  $('#flist').innerHTML=l.map(f=>`<button data-pick="${f.id}"><span>${esc(f.name)}</span><span>${f.kcal} kcal · ${f.prot} g /100 g</span></button>`).join('')||'<span class="small muted" style="padding:10px">Aucun aliment. Crée-le avec le bouton ci-dessous.</span>'}
 function renderQty(g){const f=foodById(addCtx.fid)||{...addCtx.custom,unit:'portion',ug:100};addCtx.f=f;
  $('#pick').hidden=true;$('#qty').hidden=false;

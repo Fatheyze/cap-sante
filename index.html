@@ -533,6 +533,7 @@ function viewJour(){
  const water=dd.water||0;
  return `${gauges(T,m)}<div class="top"><div><span class="eyebrow">Cap Santé</span><h1>${fdate(d).replace(/^./,c=>c.toUpperCase())}</h1></div><button class="icon" data-act="settings" aria-label="Réglages">⚙</button></div>
  <div class="stack">
+ ${(()=>{const L=((state.days[d]&&state.days[d].food)||[]);if(!L.length)return'<p class="small muted" style="margin:0 0 10px">Aucun aliment saisi aujourd’hui.</p>';const z=[...L].filter(e=>e.t).sort((a,b)=>b.t-a.t)[0];const l=L[L.length-1];return'<p class="small muted" style="margin:0 0 10px">Dernier aliment saisi : <b>'+esc(l.name)+'</b>'+(z?' à '+new Date(z.t).toTimeString().slice(0,5):' (heure inconnue)')+'</p>'})()}
  ${weighReminder()}
  ${proteinAlert(T,m)}
  <button class="orange" data-act="faim" style="min-height:54px;font-size:17px">J’ai faim</button>
@@ -931,7 +932,7 @@ function stopTimer(){tm.run=false;clearInterval(tm.iv);try{tm.lock?.release()}ca
 function finishSession(){stopTimer();const d=dayEdit(today());d.act=[...(d.act||[]),{type:'maison',min:30,duo:!!ui.duo}];persist('d-'+today());tm.i=SESSION.length;drawTimer();tm={...tm,i:0,left:SESSION[0][1]}}
 
 /* ---------- actions ---------- */
-function addFood(meal,f,g){const d=dayEdit(ui.date);d.food=[...(d.food||[]),{id:uid(),meal,fid:f.fid||f.id,name:f.name,g:+g,kcal:+f.kcal,prot:+f.prot}];persist('d-'+ui.date)}
+function addFood(meal,f,g){const d=dayEdit(ui.date);d.food=[...(d.food||[]),{id:uid(),t:Date.now(),meal,fid:f.fid||f.id,name:f.name,g:+g,kcal:+f.kcal,prot:+f.prot}];persist('d-'+ui.date)}
 document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-close]');if(!b)return;const D=b.dataset;
  if(D.close&&(ev.target===b||b.tagName==='BUTTON')){closeSheet();return}
  if(D.tab){go(D.tab);return}

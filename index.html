@@ -465,7 +465,17 @@ const totalMin=()=>Object.keys(state.days).reduce((s,d)=>s+actMin(d),0);
 
 /* ---------- sauvegarde locale + synchronisation (base privée de l'artifact) ---------- */
 let COL=null,flushT=null,migrated=false;const dirty=new Set(),writing=new Set();
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}}
+const GH={get:()=>{try{return JSON.parse(localStorage.getItem('capsante-gh')||'null')}catch(e){return null}},set:v=>{try{localStorage.setItem('capsante-gh',JSON.stringify(v))}catch(e){}}};
+let ghTimer=null,ghPulling=false,ghBusy=false;
+function ghSchedule(){if(ghPulling||!GH.get())return;clearTimeout(ghTimer);ghTimer=setTimeout(ghPush,2000)}
+const b64e=s=>{const u=new TextEncoder().encode(s);let b='';for(let i=0;i<u.length;i+=8192)b+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(b)};
+const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')),c=>c.charCodeAt(0)));
+function ghUrl(c){return 'https://api.github.com/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo)+'/contents/'+c.file.split('/').map(encodeURIComponent).join('/')}
+function ghReq(c,method,body){return fetch(ghUrl(c),{method,headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'})}
+async function ghPull(){const c=GH.get();if(!c)return false;const r=await ghReq(c,'GET');if(r.status===404)return 'none';if(!r.ok)throw new Error('GitHub '+r.status);const j=await r.json();c.sha=j.sha;GH.set(c);const s=JSON.parse(b64d(j.content));if(!s.meta||!s.days)throw new Error('fichier invalide');ghPulling=true;try{state={meta:{...DEF_META(),...s.meta},days:s.days};saveLocal()}finally{ghPulling=false}render();return true}
+async function ghPush(){const c=GH.get();if(!c||ghBusy)return;ghBusy=true;try{let sha=c.sha;if(!sha){const g=await ghReq(c,'GET');if(g.ok)sha=(await g.json()).sha}const body={message:'Synchro Cap Santé',content:b64e(JSON.stringify(state)),...(sha?{sha}:{})};const r=await ghReq(c,'PUT',body);if(!r.ok)throw new Error('GitHub '+r.status);const j=await r.json();c.sha=j.content.sha;GH.set(c);toast('Synchronisé')}catch(e){toast('Synchro impossible : '+e.message)}finally{ghBusy=false}}
+setTimeout(()=>{if(GH.get())ghPull().then(x=>{if(x==='none')return ghPush()}).catch(()=>{})},400);
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(state))}catch(e){}ghSchedule()}
 function persist(key){saveLocal();if(!COL)return;dirty.add(key);setSync('wait');clearTimeout(flushT);flushT=setTimeout(flush,700)}
 const bodyFor=k=>k==='meta'?{...state.meta,labs:undefined,medical:undefined}:(state.days[k.slice(2)]||{});
 async function flush(){let err=false,busy=false;
@@ -801,6 +811,7 @@ function sheetSettings(){const m=state.meta;
  <label class="f">Jour de pesée (rappel la veille)<select id="s-wd">${JOURS.map((j,i)=>`<option value="${i}" ${(m.weighDay??parse(m.startDate).getDay())==i?'selected':''}>${j}</option>`).join('')}</select></label>
  <button data-act="savesettings">Enregistrer</button>
  <button class="sm line" data-act="refreshfood">Recalculer le journal avec Ciqual 2025</button>
+ <div class="card"><span class="eyebrow">Synchronisation GitHub privée</span><span class="small muted">Dépôt privé uniquement. Le jeton reste dans ce navigateur, jamais dans la page.</span><label class="f">Compte GitHub<input id="gh-o" value="Fatheyze"></label><label class="f">Dépôt privé<input id="gh-r" value="donnees-cap-sante"></label><label class="f">Fichier<input id="gh-f" value="cap-sante.json"></label><label class="f">Jeton d’accès personnel<input id="gh-t" type="password" placeholder="Colle ton jeton ici"></label><div class="row"><button class="sm" data-act="ghsave">Enregistrer et récupérer</button><button class="sm line" data-act="ghpull">Récupérer</button><button class="sm line" data-act="ghpush">Envoyer</button><button class="sm ghost" data-act="ghoff">Désactiver</button></div></div>
  <div class="card"><span class="eyebrow">Sauvegarde</span><span class="small muted">Tes données sont enregistrées sur ton compte et sur l’appareil. Pour une copie de secours, copie ce texte et garde-le dans tes notes. Pour restaurer, colle-le puis touche « Restaurer ».</span>
  <textarea id="bk">${esc(JSON.stringify(state))}</textarea><div class="row"><button class="sm ghost" data-act="copybk">Copier</button><button class="sm line" data-act="restore">Restaurer</button></div></div>`)}
 
@@ -992,6 +1003,10 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
   Object.assign(m,{kcal:n('#s-k',m.kcal),prot:n('#s-p',m.prot),startW:n('#s-sw',m.startW),goalW:n('#s-g',m.goalW),height:n('#s-h',m.height),water:Math.min(12,n('#s-w',m.water)),startDate:$('#s-sd').value||m.startDate,weighDay:+$('#s-wd').value});
   persist('meta');closeSheet();toast('Réglages enregistrés')}
  else if(A==='refreshfood'){if(!refreshArmed){refreshArmed=true;toast('Appuie une seconde fois pour confirmer');return}refreshArmed=false;let n=0;for(const d in state.days){const e=state.days[d]&&state.days[d].food;if(!e)continue;let ch=false;e.forEach(x=>{const f=FOODS0.find(q=>q.id===x.fid);if(f&&(x.kcal!==+f.kcal||x.prot!==+f.prot)){x.kcal=+f.kcal;x.prot=+f.prot;ch=true;n++}});if(ch)persist('d-'+d)}saveLocal();toast(n+' ligne(s) mise(s) à jour');render()}
+ else if(A==='ghsave'){const c={owner:$('#gh-o').value.trim(),repo:$('#gh-r').value.trim(),file:$('#gh-f').value.trim()||'cap-sante.json',token:$('#gh-t').value.trim()};if(!c.owner||!c.repo||!c.token){toast('Renseigne le compte, le dépôt et le jeton');return}const old=GH.get();if(old&&old.sha)c.sha=old.sha;GH.set(c);ghPull().then(x=>{if(x==='none')return ghPush();toast('Récupéré')}).catch(e=>toast('Synchro impossible : '+e.message))}
+ else if(A==='ghpull'){ghPull().then(x=>{toast(x==='none'?'Aucune donnée sur GitHub encore':'Récupéré')}).catch(e=>toast('Synchro impossible : '+e.message))}
+ else if(A==='ghpush'){ghPush()}
+ else if(A==='ghoff'){localStorage.removeItem('capsante-gh');toast('Synchro désactivée sur cet appareil')}
  else if(A==='copybk'){const t=$('#bk');navigator.clipboard?.writeText(t.value).then(()=>toast('Copié'),()=>{t.select();toast('Texte sélectionné : copie-le')})||(t.select())}
  else if(A==='restore'){try{const s=JSON.parse($('#bk').value);if(!s.meta||!s.days)throw 0;state={meta:{...DEF_META(),...s.meta},days:s.days};persist('meta');for(const k in state.days)persist('d-'+k);closeSheet();toast('Données restaurées')}catch(e){toast('Texte de sauvegarde invalide')}}
  else if(A==='shopadd'){const v=$('#shopin').value.trim();if(!v)return;shopAdd(v,'Mes ajouts');persist('meta');render();setTimeout(()=>$('#shopin')?.focus(),0)}

@@ -804,7 +804,7 @@ function sheetSettings(){const m=state.meta;
  <textarea id="bk">${esc(JSON.stringify(state))}</textarea><div class="row"><button class="sm ghost" data-act="copybk">Copier</button><button class="sm line" data-act="restore">Restaurer</button></div></div>`)}
 
 /* ---------- bilan sanguin (PDF lu sur l'appareil) ---------- */
-let pendingLab=null;
+let pendingLab=null;let refreshArmed=false;
 async function readPdfText(file){const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;let t='';
  for(let i=1;i<=doc.numPages;i++){const c=await (await doc.getPage(i)).getTextContent();t+=c.items.map(x=>x.str).join(' ')+'\n'}return t}
 const num=(t,re)=>{const m=t.match(re);return m?+m[1].replace(',','.'):null};
@@ -990,7 +990,7 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('button,[data-c
  else if(A==='savesettings'){const m=state.meta;const n=(id,def)=>{const v=+$(id).value;return v>0?v:def};
   Object.assign(m,{kcal:n('#s-k',m.kcal),prot:n('#s-p',m.prot),startW:n('#s-sw',m.startW),goalW:n('#s-g',m.goalW),height:n('#s-h',m.height),water:Math.min(12,n('#s-w',m.water)),startDate:$('#s-sd').value||m.startDate,weighDay:+$('#s-wd').value});
   persist('meta');closeSheet();toast('Réglages enregistrés')}
- else if(A==='refreshfood'){if(!confirm('Mettre à jour les calories et protéines des aliments déjà saisis dans ton journal ? Les grammes ne changent pas.'))return;let n=0;for(const d in state.days){const e=state.days[d]&&state.days[d].food;if(!e)continue;let ch=false;e.forEach(x=>{const f=FOODS0.find(q=>q.id===x.fid);if(f&&(x.kcal!==+f.kcal||x.prot!==+f.prot)){x.kcal=+f.kcal;x.prot=+f.prot;ch=true;n++}});if(ch)persist('d-'+d)}saveLocal();toast(n+' ligne(s) mise(s) à jour');render()}
+ else if(A==='refreshfood'){if(!refreshArmed){refreshArmed=true;toast('Appuie une seconde fois pour confirmer');return}refreshArmed=false;let n=0;for(const d in state.days){const e=state.days[d]&&state.days[d].food;if(!e)continue;let ch=false;e.forEach(x=>{const f=FOODS0.find(q=>q.id===x.fid);if(f&&(x.kcal!==+f.kcal||x.prot!==+f.prot)){x.kcal=+f.kcal;x.prot=+f.prot;ch=true;n++}});if(ch)persist('d-'+d)}saveLocal();toast(n+' ligne(s) mise(s) à jour');render()}
  else if(A==='copybk'){const t=$('#bk');navigator.clipboard?.writeText(t.value).then(()=>toast('Copié'),()=>{t.select();toast('Texte sélectionné : copie-le')})||(t.select())}
  else if(A==='restore'){try{const s=JSON.parse($('#bk').value);if(!s.meta||!s.days)throw 0;state={meta:{...DEF_META(),...s.meta},days:s.days};persist('meta');for(const k in state.days)persist('d-'+k);closeSheet();toast('Données restaurées')}catch(e){toast('Texte de sauvegarde invalide')}}
  else if(A==='shopadd'){const v=$('#shopin').value.trim();if(!v)return;shopAdd(v,'Mes ajouts');persist('meta');render();setTimeout(()=>$('#shopin')?.focus(),0)}
